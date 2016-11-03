@@ -7,13 +7,6 @@ Simple model that doesn't really do anything :p
 import numpy as np
 from hmmlearn import hmm
 
-user_id = 0
-time = 3
-request_type = 4
-object_id = 5
-protocol = 6
-status_code = 7
-size = 8
 
 def main():
     with open('test_logs') as f:
@@ -21,9 +14,7 @@ def main():
     log_data = [log.replace('-', '-1').split() for log in logs]
 
     # client id, status, object id
-    features = {200: [], 304: []}
-    for data in log_data:
-        features[data[status_code]].append([data[user_id], data[request_type], data[object_id], data[protocol], data[size]])
+    features = [[data[0], data[-2], data[-1]] for data in log_data]
 
     samples = np.asarray(features).astype(np.float)
     model = hmm.GaussianHMM(n_components=2, covariance_type="full", n_iter=100)
