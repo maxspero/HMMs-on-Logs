@@ -26,7 +26,7 @@ def main():
                 pass 
 
     concatSeq = np.concatenate(sequences[:-100])
-    model = hmm.GaussianHMM(n_components=3, covariance_type="full", n_iter=100)
+    model = hmm.GaussianHMM(n_components=1, covariance_type="full", n_iter=100)
     model.fit(concatSeq, lengths[:-100])
     print model.monitor_
     print model.monitor_.converged
@@ -36,7 +36,6 @@ def main():
 
     print model.predict(sequences[:-100])
     print model.score(sequences[:-100])
-    """
 
 if __name__ == "__main__":
     main()
