@@ -26,7 +26,7 @@ def extract_data(log_data):
 
 
 def main():
-    with open('data') as f:
+    with open('../extractedLog.tsv') as f:
         logs = f.readlines()
     log_data = [log.split("\t") for log in logs]
 
