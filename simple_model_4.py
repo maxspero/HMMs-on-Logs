@@ -40,7 +40,7 @@ def main():
         logs = f.readlines()
     log_data = [log.split("\t") for log in logs]
 
-    training_seq, training_lengths = extract_data(log_data[:100])
+    training_seq, training_lengths = extract_data(log_data[:200])
 
     model = hmm.MultinomialHMM(n_components=2, n_iter=10)
     model.fit(training_seq, training_lengths)
@@ -64,8 +64,8 @@ def main():
     plt.hist(scores, 50)
     plt.show(block=True)
 
-    results = [(score, seq) for score, seq in zip(scores, sequences)]
-    sorted(results, key=lambda x: x[0])
+    results = [[score, seq] for score, seq in zip(scores, sequences)]
+    results = sorted(results, key=lambda x: x[0])
 
     with open('model_4_results', 'w') as f:
         f.write("Lowest probability sequences\n")
