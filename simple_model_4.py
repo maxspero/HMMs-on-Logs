@@ -9,7 +9,7 @@ from hmmlearn import hmm
 import matplotlib.pyplot as plt
 
 log_sequence = 17
-sequence_length = 10  # make this a command-line arg
+sequence_length = 15  # make this a command-line arg
 
 
 def extract_data(log_data):
@@ -21,7 +21,7 @@ def extract_data(log_data):
             try:
                 x = [int(i) for i in log[17].strip().split(",")]
                 num_samples = len(x)
-                if num_samples < 10:
+                if num_samples < sequence_length:
                     num_less_than_seqlen += 1
                     continue
                 for i in xrange(num_samples - sequence_length + 1):
@@ -69,10 +69,10 @@ def main():
 
     with open('model_4_results', 'w') as f:
         f.write("Lowest probability sequences\n")
-        for result in results[:10]:
+        for result in results[:50]:
             f.write("{}: {}\n".format(result[0], result[1]))
         f.write("\nHighest probability sequences\n")
-        for result in results[-10:]:
+        for result in results[-50:]:
             f.write("{}: {}\n".format(result[0], result[1]))
 
 
