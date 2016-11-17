@@ -9,7 +9,7 @@ from hmmlearn import hmm
 import matplotlib.pyplot as plt
 
 log_sequence = 17
-sequence_length = 10  # make this a command-line arg
+sequence_length = 15  # make this a command-line arg
 
 
 def extract_data(log_data):
@@ -40,7 +40,7 @@ def main():
         logs = f.readlines()
     log_data = [log.split("\t") for log in logs]
 
-    training_seq, training_lengths = extract_data(log_data[:1000])
+    training_seq, training_lengths = extract_data(log_data[:200])
 
     model = hmm.MultinomialHMM(n_components=2, n_iter=10)
     model.fit(training_seq, training_lengths)
