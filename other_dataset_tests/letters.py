@@ -10,7 +10,7 @@ import numpy as np
 from hmmlearn import hmm
 
 def main():
-    with open('data_letters.csv') as f:
+    with open('letters_data.csv') as f:
         letters = f.readlines()
     ltr_data = [letter.split(",") for letter in letters]
 
@@ -19,48 +19,47 @@ def main():
     normals = np.asarray([ltr for ltr in ltr_data if ltr[-1] == '"n"\n'])
 
     # delete the label
-    train_anomaly = np.delete(anomalies, -1, 1)
-    train_normals = np.delete(normals, -1, 1)
+    anomalies = np.delete(anomalies, -1, 1).astype(np.float_, copy=False)
+    normals = np.delete(normals, -1, 1).astype(np.float_, copy=False)
 
     # retype as floats
-    train_anomaly = train_anomaly.astype(np.float_, copy=False)
-    train_normals = train_normals.astype(np.float_, copy=False)
-
+    train_anomaly = anomalies[:100]
+    train_normals = normals[:1500]
+    
     # TRAINING 2 HMMs: one for anomaly, one for normals.
-    anomaly_model = hmm.GaussianHMM(n_components=2, n_iter=50)
-    normal_model = hmm.GaussianHMM(n_components=2, n_iter=50)
+    anomaly_model = hmm.GMMHMM(n_components=2, n_iter=50)
+    normal_model = hmm.GMMHMM(n_components=2, n_iter=50)
     anomaly_model.fit(train_anomaly)
     normal_model.fit(train_normals)
 
-    print anomaly_model.monitor_
-    print normal_model.monitor_
+    print "Training stats for anomalies: \n{0}\n ".format(anomaly_model.monitor_)
+    print "Training stats for normals: \n{0}\n ".format(normal_model.monitor_)
 
     # TESTING:
     # Comparing model likelihoods for each anomaly and normal record.
     # Recording successful anomalies and normals
     corr_anomalies = 0
     corr_normals = 0
-    for anomaly in train_anomaly:
-        if anomaly_model.score(anomaly) < normal_model.score(anomaly):
+    for anomaly in anomalies:
+        if anomaly_model.score(anomaly) > normal_model.score(anomaly):
             corr_anomalies += 1
 
-    for normal in train_normals:
-        if anomaly_model.score(normal) > normal_model.score(normal):
+    for normal in normals:
+        if anomaly_model.score(normal) < normal_model.score(normal):
             corr_normals += 1
 
     # Print out anomaly, normal, and overall correctness.
     print "Anomaly Correctness rate for {0} anomalies is {1}".format(
-            len(train_anomaly), 
-            corr_anomalies / len(train_anomaly))
+            len(anomalies), 
+            corr_anomalies / len(anomalies))
 
     print "Normal Correctness rate for {0} normals is {1}".format(
-            len(train_normals), 
-            corr_normals / len(train_normals))
+            len(normals), 
+            corr_normals / len(normals))
     
     print "Overall Correctness rate for {0} points is {1}".format(
             len(ltr_data), 
             (corr_anomalies + corr_normals) / len(ltr_data))
-
 
 if __name__ == "__main__":
     np.set_printoptions(threshold=np.inf)
