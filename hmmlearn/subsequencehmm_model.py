@@ -6,11 +6,12 @@ Simple model that reads extractedLog.tsv
 
 import numpy as np
 from hmmlearn import hmm
+from hmmlearn import subsequencehmm
 from sklearn.preprocessing import LabelEncoder
 import math
 from sklearn.externals import joblib
 
-n_training_samples = None # None == all data
+n_training_samples = 100 # None == all data
 n_hidden_states = 2
 n_iterations = 10
 sequence_length = 15
@@ -52,31 +53,32 @@ def main():
     training_seq, training_lengths = extract_data(log_data[:n_training_samples])
 
     print "Fitting model..."
-    model = hmm.MultinomialHMM(n_components=n_hidden_states, n_iter=n_iterations)
+    model = subsequencehmm.SubsequenceHMM(n_components=n_hidden_states, n_iter=n_iterations)
     model.fit(training_seq, training_lengths)
     print "Model fit! Converged =", model.monitor_.converged
 
     scores = []
     sequences = []
-    for i in xrange(len(training_lengths)):
+    for i in xrange(len(training_seq[:,0])):
         seq = training_seq[i:i+sequence_length,0]
         sequences.append(seq)
         seq = seq.reshape(-1, 1)
-        score = model.score(seq, [sequence_length])
+        score = model.score(seq)
         scores.append(score)
 
     results = [[score, seq] for score, seq in zip(scores, sequences)]
     results = sorted(results, key=lambda x: x[0])
 
-    with open('score_top_sequences_results', 'w') as f:
-        f.write("Lowest probability sequences\n")
-        for result in results[:50]:
-            f.write("{}: {}\n".format(result[0], result[1]))
-        f.write("\nHighest probability sequences\n")
-        for result in results[-50:]:
-            f.write("{}: {}\n".format(result[0], result[1]))
-        result = results[int(len(results)*0.01)]
-        f.write("\nBottom 1% probability sequences have a log probability of {} and looks something like this: {}".format(result[1], result[0]))
+    subseq_scores = model.scoreSubsequencesNaive(training_seq, sequence_length)
+
+    print scores, subseq_scores
+    print len(scores), len(subseq_scores)
+    
+    print model.score(training_seq[:sequence_length])
+    print model.score(training_seq[1:sequence_length+1])
+    print model.scoreSubsequences(training_seq[:sequence_length+1], sequence_length)
+    print model.scoreSubsequencesNaive(training_seq[:sequence_length+1], sequence_length)
+
 
 
 if __name__ == "__main__":
