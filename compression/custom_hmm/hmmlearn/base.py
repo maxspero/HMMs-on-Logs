@@ -527,6 +527,30 @@ class _BaseHMM(BaseEstimator):
 
         return sumlogc
 
+    # With numerical stability
+    def _forward_modified_v2_multiframe(self, n_samples, n_components,
+                 startprob,
+                 transmat,
+                 frameprob,
+                 fwdlattice):
+        sumlogc = 0
+        A = np.transpose(transmat)
+        B = np.diag([b for b in frameprob[0,:]])
+        alpha = B.dot(startprob)
+        c = np.sum(alpha)
+        alpha = alpha/c
+        sumlogc += np.log(c)
+
+        for i in range(1, n_samples):
+            B = np.diag([b for b in frameprob[i,:]])
+            C = B.dot(A)
+            alpha = C.dot(alpha)
+            c = np.sum(alpha)
+            alpha = alpha/c
+            sumlogc += np.log(c)
+
+        return sumlogc
+
     # c and s
     def _forward_modified_v3(self, n_samples, n_components,
                  startprob,
