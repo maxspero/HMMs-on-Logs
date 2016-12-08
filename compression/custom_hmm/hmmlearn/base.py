@@ -503,7 +503,7 @@ class _BaseHMM(BaseEstimator):
 
         return np.log(np.sum(alpha))
 
-    # With numerical stability
+    # With numerical stability by tradition scaling of alpha
     def _forward_modified_v2(self, n_samples, n_components,
                  startprob,
                  transmat,
@@ -527,32 +527,29 @@ class _BaseHMM(BaseEstimator):
 
         return sumlogc
 
-    # With numerical stability
-    def _forward_modified_v2_multiframe(self, n_samples, n_components,
+    # Numerical stability by scaling on the C matrices
+    def _forward_modified_v3(self, n_samples, n_components,
                  startprob,
                  transmat,
                  frameprob,
                  fwdlattice):
-        sumlogc = 0
+        prodlogs = 1  # C
         A = np.transpose(transmat)
         B = np.diag([b for b in frameprob[0,:]])
         alpha = B.dot(startprob)
-        c = np.sum(alpha)
-        alpha = alpha/c
-        sumlogc += np.log(c)
 
         for i in range(1, n_samples):
             B = np.diag([b for b in frameprob[i,:]])
             C = B.dot(A)
+            s = np.sum(C)
+            C = C/s
+            prodlogs *= s
             alpha = C.dot(alpha)
-            c = np.sum(alpha)
-            alpha = alpha/c
-            sumlogc += np.log(c)
 
-        return sumlogc
+        return np.log(np.sum(prodlogs*alpha))
 
-    # c and s
-    def _forward_modified_v3(self, n_samples, n_components,
+    # Numerical stability by scaling both alpha and C
+    def _forward_modified(self, n_samples, n_components,
                  startprob,
                  transmat,
                  frameprob,
@@ -570,7 +567,6 @@ class _BaseHMM(BaseEstimator):
             B = np.diag([b for b in frameprob[i,:]])
             C = B.dot(A)
             s = np.sum(C)
-            print(s)
             C = C/s
             sumlogs += np.log(s)
             alpha = C.dot(alpha)
@@ -578,36 +574,7 @@ class _BaseHMM(BaseEstimator):
             alpha = alpha/c
             sumlogc += np.log(c)
 
-        return sumlogc*sumlogs
-
-    """
-    def _forward_modified(self, n_samples, n_components,
-                 startprob,
-                 transmat,
-                 frameprob,
-                 fwdlattice):
-        sumlogs = 0  # C
-        A = np.transpose(transmat)
-        B = np.diag([b for b in frameprob[0,:]])
-        alpha = B.dot(startprob)
-        c = np.sum(alpha)
-        alpha = alpha/c
-        sumlogc += np.log(c)
-
-        for i in range(1, n_samples):
-            B = np.diag([b for b in frameprob[i,:]])
-            C = B.dot(A)
-            s = np.sum(C)
-            print(s)
-            C = C/s
-            sumlogs += np.log(s)
-            alpha = C.dot(alpha)
-            c = np.sum(alpha)
-            alpha = alpha/c
-            sumlogc += np.log(c)
-
-        return sumlogc*sumlogs
-    """
+        return sumlogc + sumlogs
 
     def _do_forward_pass(self, framelogprob):
         n_samples, n_components = framelogprob.shape
@@ -621,7 +588,7 @@ class _BaseHMM(BaseEstimator):
     def _do_forward_pass_modified(self, frameprob):
         n_samples, n_components = frameprob.shape
         fwdlattice = np.zeros((n_samples, n_components))
-        prob = self._forward_modified_v2(n_samples, n_components,
+        prob = self._forward_modified(n_samples, n_components,
                        self.startprob_,
                        self.transmat_,
                        frameprob, fwdlattice)
