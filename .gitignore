@@ -1,1 +1,2 @@
 ./data
+./compression/custom_hmm/models/*

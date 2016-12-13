@@ -252,7 +252,7 @@ class _BaseHMM(BaseEstimator):
             logprob += logprobij
         return logprob
 
-    def score_modified(self, X, lengths=None):
+    def score_modified(self, X, lengths=None, fq_c=None):
         check_is_fitted(self, "startprob_")
         self._check()
 
@@ -264,6 +264,23 @@ class _BaseHMM(BaseEstimator):
             logprobij, _fwdlattice = self._do_forward_pass_modified(frameprob)
             logprob += logprobij
         return logprob
+
+    def score_compressed(self, alpha, encoded_seq):
+        check_is_fitted(self, "startprob_")
+        self._check()
+
+        sumlogc = 0  # alpha
+        c = np.sum(alpha)
+        alpha = alpha/c
+        sumlogc += np.log(c)
+
+        for C in encoded_seq:
+            alpha = C.dot(alpha)
+            c = np.sum(alpha)
+            alpha = alpha/c
+            sumlogc += np.log(c)
+
+        return sumlogc
 
 
     def _decode_viterbi(self, X):
@@ -573,7 +590,7 @@ class _BaseHMM(BaseEstimator):
             c = np.sum(alpha)
             alpha = alpha/c
             sumlogc += np.log(c)
-
+    
         return sumlogc + sumlogs
 
     """

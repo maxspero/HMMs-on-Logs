@@ -44,23 +44,6 @@ cdef inline dtype_t _logaddexp(dtype_t a, dtype_t b) nogil:
         return max(a, b) + log1pl(expl(-fabsl(a - b)))
 
 
-def _forward_modified(int n_samples, int n_components,
-             dtype_t[:] startprob,
-             dtype_t[:, :] transmat,
-             dtype_t[:, :] frameprob,
-             dtype_t[:, :] fwdlattice):
-    A = np.transpose(transmat)
-    B = np.diag([b for b in frameprob[0,:]])
-    alpha = B.dot(startprob)
-
-    for i in range(1, n_samples):
-        B = np.diag([b for b in frameprob[i,:]])
-        C = B.dot(A)
-        alpha = C.dot(alpha)
-
-    return np.sum(alpha)
-
-
 def _forward(int n_samples, int n_components,
              dtype_t[:] log_startprob,
              dtype_t[:, :] log_transmat,
