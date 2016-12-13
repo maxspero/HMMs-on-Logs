@@ -17,6 +17,7 @@ from .hmm import MultinomialHMM
 
 class SubsequenceHMM(MultinomialHMM):
 
+    # incorrect - also takes into account previous subsequences
     def scoreSubsequences(self, X, subsequenceLength):
         check_is_fitted(self, "startprob_")
         self._check()
@@ -33,12 +34,14 @@ class SubsequenceHMM(MultinomialHMM):
 
         X = check_array(X)
         # XXX we can unroll forward pass for speed and memory efficiency.
-        framelogprob = self._compute_log_likelihood(X)
-        outputs = self._do_forward_pass_multiframe_naive(framelogprob, subsequenceLength)
+        # framelogprob = self._compute_log_likelihood(X)
+        # outputs = self._do_forward_pass_multiframe_naive(framelogprob, subsequenceLength)
+        frameprob = self.emissionprob_[:,np.concatenate(X)].T
+        outputs = self._do_forward_pass_multiframe_naive_modified(frameprob, subsequenceLength)
         # outputs2, fwdlattice = self._do_forward_pass_multiframe_matrix(framelogprob, subsequenceLength)
         # print((len(outputs), len(outputs2)))
         # print(fwdlattice)
-        return [(outputs[i], outputs2[i]) for i in xrange(len(outputs2))]
+        return [output[1] for output in outputs]
         # return [prob for prob in outputs]
 
     def _do_forward_pass(self, framelogprob):
@@ -60,6 +63,18 @@ class SubsequenceHMM(MultinomialHMM):
                          log_mask_zero(self.transmat_),
                          framelogprob[i:i+framelength], fwdlattice)
           outputs.append((fwdlattice, logsumexp(fwdlattice[-1])))
+        return outputs
+
+    def _do_forward_pass_multiframe_naive_modified(self, framelogprob, framelength):
+        n_samples, n_components = framelogprob.shape
+        outputs = [] # array of logprob values, for logprob at i, value is prob of samples[i:i+framelength]
+        for i in xrange(n_samples-framelength+1):
+          fwdlattice = np.zeros((framelength, n_components))
+          prob = self._forward_modified(framelength, n_components,
+                         log_mask_zero(self.startprob_),
+                         log_mask_zero(self.transmat_),
+                         framelogprob[i:i+framelength], fwdlattice)
+          outputs.append((fwdlattice, prob))
         return outputs
 
     def _do_forward_pass_multiframe_matrix(self, framelogprob, framelength):

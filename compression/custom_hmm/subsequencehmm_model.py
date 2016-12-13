@@ -71,12 +71,15 @@ def main():
 
     subseq_scores = model.scoreSubsequencesNaive(training_seq, sequence_length)
 
-    print scores, subseq_scores
+    # print scores, subseq_scores
     print len(scores), len(subseq_scores)
+    print scores[-1], subseq_scores[-1]
+
+    print model.score(training_seq), model.score_modified(training_seq)
     
     print model.score(training_seq[:sequence_length])
     print model.score(training_seq[1:sequence_length+1])
-    print model.scoreSubsequences(training_seq[:sequence_length+1], sequence_length)
+    # print model.scoreSubsequences(training_seq[:sequence_length+1], sequence_length)
     print model.scoreSubsequencesNaive(training_seq[:sequence_length+1], sequence_length)
 
 

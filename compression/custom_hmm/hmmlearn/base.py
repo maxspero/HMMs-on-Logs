@@ -576,6 +576,36 @@ class _BaseHMM(BaseEstimator):
 
         return sumlogc + sumlogs
 
+    """
+    def _forward_multiframe(self, n_samples, n_components,
+                 startprob,
+                 transmat,
+                 frameprob,
+                 fwdlattice, 
+                 framelength):
+        sumlogc = 0  # alpha
+        sumlogs = 0  # C
+        A = np.transpose(transmat)
+        B = np.diag([b for b in frameprob[0,:]])
+        alpha = B.dot(startprob)
+        c = np.sum(alpha)
+        alpha = alpha/c
+        sumlogc += np.log(c)
+
+        for i in range(1, n_samples):
+            B = np.diag([b for b in frameprob[i,:]])
+            C = B.dot(A)
+            s = np.sum(C)
+            C = C/s
+            sumlogs += np.log(s)
+            alpha = C.dot(alpha)
+            c = np.sum(alpha)
+            alpha = alpha/c
+            sumlogc += np.log(c)
+
+        return sumlogc + sumlogs
+    """
+
     def _do_forward_pass(self, framelogprob):
         n_samples, n_components = framelogprob.shape
         fwdlattice = np.zeros((n_samples, n_components))
