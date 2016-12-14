@@ -46,6 +46,15 @@ class SubsequenceHMM(MultinomialHMM):
         outputs = self._do_forward_pass_multiframe_naive_modified(frameprob, subsequenceLength)
         return [output[1] for output in outputs]
 
+    def scoreSubsequencesSlidingWindow(self, X, subsequenceLength):
+        check_is_fitted(self, "startprob_")
+        self._check()
+
+        X = check_array(X)
+        frameprob = self.emissionprob_[:,np.concatenate(X)].T
+        outputs = self._do_forward_pass_sliding_window(frameprob, subsequenceLength)
+        return outputs
+
     def _do_forward_pass(self, framelogprob):
         n_samples, n_components = framelogprob.shape
         fwdlattice = np.zeros((n_samples, n_components))
@@ -78,8 +87,17 @@ class SubsequenceHMM(MultinomialHMM):
                          frameprob[i:i+framelength], fwdlattice)
           outputs.append((fwdlattice, prob))
         return outputs
+        
+    def _do_forward_pass_sliding_window(self, frameprob, framelength):
+        n_samples, n_components = frameprob.shape
+        outputs = self._forward_modified_sliding_window(n_samples, n_components,
+                         self.startprob_,
+                         self.transmat_,
+                         frameprob,
+                         framelength)
+        return outputs
 
-    # ?
+    # doesn't work like that
     def _do_forward_pass_multiframe_matrix(self, framelogprob, framelength):
         n_samples, n_components = framelogprob.shape
         fwdlattice = np.zeros((n_samples, n_components))
@@ -89,18 +107,51 @@ class SubsequenceHMM(MultinomialHMM):
                        framelogprob, fwdlattice)
         return [fwdlattice[i+framelength] - fwdlattice[i] for i in xrange(0, len(fwdlattice) - framelength)], fwdlattice
 
-    # ?
-    def _do_forward_pass_multiframe_loops(self, framelogprob, framelength):
-        n_samples, n_components = framelogprob.shape
-        outputs = [] # array of logprob values, for logprob at i, value is prob of samples[i:i+framelength]
-        for i in xrange(n_samples-framelength+1):
-          fwdlattice = np.zeros((framelength, n_components))
-          _hmmc._forward(framelength, n_components,
-                         log_mask_zero(self.startprob_),
-                         log_mask_zero(self.transmat_),
-                         framelogprob[i:i+framelength], fwdlattice)
-          outputs.append((fwdlattice, logsumexp(fwdlattice[-1])))
-        return outputs
+    def _forward_modified_sliding_window(self, n_samples, n_components,
+                 startprob,
+                 transmat,
+                 frameprob,
+                 framelength):
+        sumlogcs = np.zeros(n_samples)
+        alphas = []
+        startingprobs = True
+        endingprobs = False
+        start = 0
+
+        A = np.transpose(transmat)
+
+        for i in range(0, n_samples):
+            # shared for all samples in window
+            B = np.diag([b for b in frameprob[i,:]])
+            C = B.dot(A)
+            s = np.sum(C)
+            C = C/s
+            logs = np.log(s)
+
+            # initialize ith sequence
+            alphas.append(B.dot(startprob))
+            c = np.sum(alphas[i])
+            alphas[i] = alphas[i]/c
+            sumlogcs[i] += np.log(c)
+            
+            # continue start:i sequences
+            for j in range(start,i):
+              alphas[j] = C.dot(alphas[j])
+              c = np.sum(alphas[j])
+              alphas[j] = alphas[j]/c
+              sumlogcs[j] += logs + np.log(c)
+
+            # increment i after first framelength iterations
+            if startingprobs:
+              if i - start == framelength - 1:
+                start += 1
+                startingprobs = False
+            else:
+              start += 1
+              
+        # throw away last framelength-1 probabilities (not full sequences)
+        return sumlogcs.tolist()[:n_samples-framelength+1]
+
 
     # def _compute_log_likelihood(self, X):
         """Computes per-component log probability under the model.

@@ -81,6 +81,7 @@ def main():
     print model.score(training_seq[1:sequence_length+1])
     # print model.scoreSubsequences(training_seq[:sequence_length+1], sequence_length)
     print model.scoreSubsequencesNaive(training_seq[:sequence_length+1], sequence_length)
+    print model.scoreSubsequencesSlidingWindow(training_seq[:sequence_length+1], sequence_length)
 
 
 
