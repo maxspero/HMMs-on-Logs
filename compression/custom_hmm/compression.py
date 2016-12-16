@@ -16,7 +16,7 @@ import operator
 from utils import *
 
 #n_training_samples = 1000  # None == all data
-n_hidden_states = 2
+#n_hidden_states = 2
 n_iterations = 10
 #subsequence_len = 10
 data_file = '../../data'
@@ -29,7 +29,7 @@ encoder = LabelEncoder()
 def format_seq(seq):
     return np.asarray(encoder.transform(seq)).reshape(-1, 1)
 
-def extract_data(log_data, subsequence_length):
+def extract_data(log_data, subsequence_length, triplets):
     subsequences = []
     lengths = []
     log_data = log_data[1:]
@@ -40,6 +40,9 @@ def extract_data(log_data, subsequence_length):
                 x = [int(i) for i in log[17].strip().split(",")]
                 for s1, s2 in itertools.izip(x, x[1:]):
                     fq[(s1, s2)] += 1
+                if triplets:
+                    for s1, s2, s3 in itertools.izip(x, x[1:], x[2:]):
+                        fq[(s1, s2, s3)] += 1
                 num_samples = len(x)
                 if num_samples < subsequence_length:
                     continue
@@ -54,7 +57,7 @@ def extract_data(log_data, subsequence_length):
     return formatted_sequences, lengths, fq
 
 
-def train_model(num_lines, subsequence_len):
+def train_model(num_lines, subsequence_len, n_hidden_states, triplets=False):
     print "Reading data..."
     with open(data_file) as f:
         logs = f.readlines()
@@ -63,12 +66,13 @@ def train_model(num_lines, subsequence_len):
     print "Subsequence length {}".format(subsequence_len)
     print "Extracting data..."
     training_seq, training_lengths, fq = \
-        extract_data(log_data[:num_lines], subsequence_len)
+        extract_data(log_data[:num_lines], subsequence_len, triplets)
 
     print "Fitting model..."
     model = hmm.MultinomialHMM(n_components=n_hidden_states, n_iter=n_iterations)
     model.fit(training_seq, training_lengths)
-    joblib.dump((model, training_seq, training_lengths, fq), 'models/' + str(num_lines) + '-' + str(subsequence_len) + '.pkl')
+    model_name = str(num_lines) + '-' + str(subsequence_len) + '-' + str(n_hidden_states) + ('-triplets' if triplets else '')
+    joblib.dump((model, training_seq, training_lengths, fq), 'models/' + model_name + '.pkl')
 
 
 def encode(seq, model, fq_c):
@@ -105,7 +109,59 @@ def encode(seq, model, fq_c):
     return alpha, encoded_seq, sumlogs
 
 
-def score_model(model_name, compressed=True, modified=True, topk=0):
+def encode_with_triplets(seq, model, fq_c):
+    seq = np.concatenate(seq)
+    A = np.transpose(model.transmat_)
+    B = np.diag([b for b in model.emissionprob_[:, seq[0]].T])
+    alpha = B.dot(model.startprob_)
+
+    encoded_seq = []
+    skip = 0
+    sumlogs = 0
+    for a, b, c in itertools.izip(seq[1:], seq[2:], seq[3:]):
+        if skip:
+            skip -= 1
+            continue
+        if (a, b, c) in fq_c:
+            C, s = fq_c[(a, b, c)]
+            encoded_seq.append(C)
+            sumlogs += s
+            skip = 2
+        elif (a, b) in fq_c:
+            C, s = fq_c[(a, b)]
+            encoded_seq.append(C)
+            sumlogs += s
+            skip = 1
+        else:
+            B = np.diag([b for b in model.emissionprob_[:, a].T])
+            C = B.dot(A)
+            s = np.sum(C)
+            encoded_seq.append(C/s)
+            sumlogs += np.log(s)
+    if not skip:  # two observations left
+        if (seq[-2], seq[-1]) in fq_c:
+            C, s = fq_c[(seq[-2], seq[-1])]
+            encoded_seq.append(C)
+            sumlogs += s
+            skip = 1
+        else:
+            B = np.diag([b for b in model.emissionprob_[:, seq[-2]].T])
+            C = B.dot(A)
+            s = np.sum(C)
+            encoded_seq.append(C/s)
+            sumlogs += np.log(s)
+    if not skip:  # add last observation in seq
+        B = np.diag([b for b in model.emissionprob_[:, seq[-1]].T])
+        C = B.dot(A)
+        s = np.sum(C)
+        encoded_seq.append(C/s)
+        sumlogs += np.log(s)
+
+
+    return alpha, encoded_seq, sumlogs
+
+
+def score_model(model_name, compressed=True, modified=True, topk=0, triplets=False):
     model, training_seq, training_lengths, fq = joblib.load('models/' + model_name + '.pkl')
     fq = sorted(fq.items(), key=operator.itemgetter(1), reverse=True)
     fq_c = defaultdict(float)
@@ -115,28 +171,49 @@ def score_model(model_name, compressed=True, modified=True, topk=0):
     if compressed:
         for obs, _ in fq[:topk]:
             try:
-                c = [0] * 3
-                frameprob = model.emissionprob_[:, obs].T
-                B = np.diag([b for b in frameprob[0,:]])
-                C1 = B.dot(A)
-                c[0] = np.sum(C1)
-                #C1 = C1/c[0]
-                B = np.diag([b for b in frameprob[1,:]])
-                C2 = B.dot(A)
-                c[1] = np.sum(C2)
-                #C2 = C2/c[1]
-                C_comb = C2.dot(C1)
-                c[2] = np.sum(C_comb)
-                C_comb = C_comb/c[2]
-                #fq_c[obs] = (C_comb, np.log(np.prod(c)))
-                fq_c[obs] = (C_comb, np.log(c[2]))
+                if len(obs) == 2:
+                    c = [0] * 3
+                    frameprob = model.emissionprob_[:, obs].T
+                    B = np.diag([b for b in frameprob[0,:]])
+                    C1 = B.dot(A)
+                    c[0] = np.sum(C1)
+                    #C1 = C1/c[0]
+                    B = np.diag([b for b in frameprob[1,:]])
+                    C2 = B.dot(A)
+                    c[1] = np.sum(C2)
+                    #C2 = C2/c[1]
+                    C_comb = C2.dot(C1)
+                    c[2] = np.sum(C_comb)
+                    C_comb = C_comb/c[2]
+                    #fq_c[obs] = (C_comb, np.log(np.prod(c)))
+                    fq_c[obs] = (C_comb, np.log(c[2]))
+                elif len(obs) == 3:
+                    frameprob = model.emissionprob_[:, obs].T
+                    B = np.diag([b for b in frameprob[0,:]])
+                    C1 = B.dot(A)
+                    B = np.diag([b for b in frameprob[1,:]])
+                    C2 = B.dot(A)
+                    B = np.diag([b for b in frameprob[2,:]])
+                    C3 = B.dot(A)
+                    C_comb = C3.dot(C2.dot(C1))
+                    c = np.sum(C_comb)
+                    C_comb = C_comb/c
+                    fq_c[obs] = (C_comb, np.log(c))
             except:
                 pass
-        start = time.clock()
-        for i, j in utils.iter_from_X_lengths(training_seq, training_lengths):
-            alpha, sequence, sumlogs = encode(training_seq[i:j], model, fq_c)
-            score = model.score_compressed(alpha, sequence)
-            scores.append(score + sumlogs)
+        #if 'triplets' in model_name:
+        if triplets:
+            start = time.clock()
+            for i, j in utils.iter_from_X_lengths(training_seq, training_lengths):
+                alpha, sequence, sumlogs = encode_with_triplets(training_seq[i:j], model, fq_c)
+                score = model.score_compressed(alpha, sequence)
+                scores.append(score + sumlogs)
+        else:
+            start = time.clock()
+            for i, j in utils.iter_from_X_lengths(training_seq, training_lengths):
+                alpha, sequence, sumlogs = encode(training_seq[i:j], model, fq_c)
+                score = model.score_compressed(alpha, sequence)
+                scores.append(score + sumlogs)
     else:
         subsequence_len = int(model_name.split('-')[1])
         start = time.clock()

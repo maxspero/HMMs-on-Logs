@@ -26,3 +26,48 @@ Reading data...
 Subsequence length 40
 Extracting data...
 Fitting model...
+  File "run.py", line 6
+    return
+SyntaxError: 'return' outside function
+/Users/Jialin/scikit-learn/sklearn/preprocessing/label.py:108: DataConversionWarning: A column-vector y was passed when a 1d array was expected. Please change the shape of y to (n_samples, ), for example using ravel().
+  y = column_or_1d(y, warn=True)
+/Users/Jialin/scikit-learn/sklearn/preprocessing/label.py:143: DataConversionWarning: A column-vector y was passed when a 1d array was expected. Please change the shape of y to (n_samples, ), for example using ravel().
+  y = column_or_1d(y, warn=True)
+Reading data...
+Subsequence length 10
+Extracting data...
+Fitting model...
+Reading data...
+Subsequence length 10
+Extracting data...
+Fitting model...
+Time for scoring 1000-10: 137.881809
+Time for scoring 1000-10: 111.696576
+Time for scoring 1000-10: 80.327868
+Time for scoring 1000-10: 69.278873
+Time for scoring 1000-10: 150.150976
+Time for scoring 1000-10: 247.86408
+Time for scoring 1000-10: 131.546211
+Time for scoring 1000-10: 105.378966
+Time for scoring 1000-10: 81.857732
+Time for scoring 1000-10: 68.937322
+Traceback (most recent call last):
+  File "run.py", line 31, in <module>
+    results[4] += score_model('1000-' + subsequence_len, compressed=False)
+  File "/Users/Jialin/HMMs-on-Logs/compression/custom_hmm/compression.py", line 148, in score_model
+    score = model.score_modified(seq, [subsequence_len], fq_c)
+  File "/Users/Jialin/HMMs-on-Logs/compression/custom_hmm/hmmlearn/base.py", line 257, in score_modified
+    self._check()
+  File "/Users/Jialin/HMMs-on-Logs/compression/custom_hmm/hmmlearn/hmm.py", line 411, in _check
+    super(MultinomialHMM, self)._check()
+  File "/Users/Jialin/HMMs-on-Logs/compression/custom_hmm/hmmlearn/base.py", line 672, in _check
+    if not np.allclose(self.transmat_.sum(axis=1), 1.0):
+  File "/usr/local/lib/python2.7/site-packages/numpy/core/numeric.py", line 2372, in allclose
+    res = all(isclose(a, b, rtol=rtol, atol=atol, equal_nan=equal_nan))
+  File "/usr/local/lib/python2.7/site-packages/numpy/core/numeric.py", line 2453, in isclose
+    return within_tol(x, y, atol, rtol)
+  File "/usr/local/lib/python2.7/site-packages/numpy/core/numeric.py", line 2437, in within_tol
+    if isscalar(a) and isscalar(b):
+  File "/usr/local/lib/python2.7/site-packages/numpy/core/numeric.py", line 2088, in isscalar
+    if isinstance(num, generic):
+KeyboardInterrupt
